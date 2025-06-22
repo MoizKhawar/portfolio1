@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Tic Tac Toe Game</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            background: #f7f7f7;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            margin: 0;
+        }
+        h1 {
+            margin-top: 40px;
+            color: #333;
+            letter-spacing: 2px;
+        }
+        .game-container {
+            background: #fff;
+            padding: 32px 40px 24px 40px;
+            border-radius: 18px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12);
+            margin-top: 32px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .mode-select {
+            margin-bottom: 18px;
+            display: flex;
+            gap: 16px;
+        }
+        .mode-btn {
+            background: #e0eaff;
+            color: #2d89ef;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 18px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            letter-spacing: 1px;
+        }
+        .mode-btn.selected {
+            background: #2d89ef;
+            color: #fff;
+            font-weight: bold;
+        }
+        .board {
+            display: grid;
+            grid-template-columns: repeat(3, 80px);
+            grid-template-rows: repeat(3, 80px);
+            gap: 12px;
+            margin-bottom: 24px;
+        }
+        .cell {
+            width: 80px;
+            height: 80px;
+            background: #f0f0f0;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2.5rem;
+            color: #2d89ef;
+            cursor: pointer;
+            transition: background 0.2s;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            user-select: none;
+        }
+        .cell:hover {
+            background: #e0eaff;
+        }
+        .cell.winner {
+            background: #d1ffd6;
+            color: #27ae60;
+            font-weight: bold;
+        }
+        .status {
+            font-size: 1.2rem;
+            margin-bottom: 16px;
+            color: #444;
+            min-height: 28px;
+            text-align: center;
+        }
+        .reset-btn {
+            background: #2d89ef;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 28px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-top: 8px;
+            letter-spacing: 1px;
+        }
+        .reset-btn:hover {
+            background: #1761a0;
+        }
+        @media (max-width: 500px) {
+            .game-container {
+                padding: 16px 4px 12px 4px;
+            }
+            .board {
+                grid-template-columns: repeat(3, 60px);
+                grid-template-rows: repeat(3, 60px);
+                gap: 8px;
+            }
+            .cell {
+                width: 60px;
+                height: 60px;
+                font-size: 2rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Tic Tac Toe</h1>
+    <div class="game-container">
+        <div class="mode-select">
+            <button class="mode-btn selected" id="twoPlayerBtn">2 Players</button>
+            <button class="mode-btn" id="vsComputerBtn">Vs Computer</button>
+        </div>
+        <div class="status" id="status"></div>
+        <div class="board" id="board"></div>
+        <button class="reset-btn" id="resetBtn">Restart Game</button>
+    </div>
+    <script>
+        const boardElem = document.getElementById('board');
+        const statusElem = document.getElementById('status');
+        const resetBtn = document.getElementById('resetBtn');
+        const twoPlayerBtn = document.getElementById('twoPlayerBtn');
+        const vsComputerBtn = document.getElementById('vsComputerBtn');
+
+        let board = Array(9).fill('');
+        let currentPlayer = 'X';
+        let gameActive = true;
+        let winnerCells = [];
+        let mode = '2p'; // '2p' or 'cpu'
+
+        function renderBoard() {
+            boardElem.innerHTML = '';
+            board.forEach((cell, idx) => {
+                const cellElem = document.createElement('div');
+                cellElem.className = 'cell';
+                if (winnerCells.includes(idx)) cellElem.classList.add('winner');
+                cellElem.textContent = cell;
+                cellElem.addEventListener('click', () => handleCellClick(idx));
+                boardElem.appendChild(cellElem);
+            });
+        }
+
+        function handleCellClick(idx) {
+            if (!gameActive || board[idx]) return;
+            board[idx] = currentPlayer;
+            checkGameStatus();
+            renderBoard();
+            if (gameActive) {
+                if (mode === '2p') {
+                    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+                    statusElem.textContent = `Player ${currentPlayer}'s turn`;
+                } else if (mode === 'cpu') {
+                    statusElem.textContent = "Computer's turn...";
+                    setTimeout(() => {
+                        computerMove();
+                    }, 400);
+                }
+            }
+        }
+
+        function computerMove() {
+            if (!gameActive) return;
+            // Simple AI: pick random empty cell
+            const emptyCells = board.map((cell, idx) => cell === '' ? idx : null).filter(idx => idx !== null);
+            if (emptyCells.length === 0) return;
+            // Optionally: block win or win if possible (simple logic)
+            let move = findBestMove('O') || findBestMove('X') || emptyCells[Math.floor(Math.random() * emptyCells.length)];
+            board[move] = 'O';
+            checkGameStatus();
+            renderBoard();
+            if (gameActive) {
+                currentPlayer = 'X';
+                statusElem.textContent = `Player X's turn`;
+            }
+        }
+
+        // Try to win or block
+        function findBestMove(player) {
+            const winPatterns = [
+                [0,1,2],[3,4,5],[6,7,8],
+                [0,3,6],[1,4,7],[2,5,8],
+                [0,4,8],[2,4,6]
+            ];
+            for (const pattern of winPatterns) {
+                const [a,b,c] = pattern;
+                const cells = [board[a], board[b], board[c]];
+                if (cells.filter(cell => cell === player).length === 2 && cells.includes('')) {
+                    return pattern[cells.indexOf('')];
+                }
+            }
+            return null;
+        }
+
+        function checkGameStatus() {
+            const winPatterns = [
+                [0,1,2],[3,4,5],[6,7,8],
+                [0,3,6],[1,4,7],[2,5,8],
+                [0,4,8],[2,4,6]
+            ];
+            for (const pattern of winPatterns) {
+                const [a,b,c] = pattern;
+                if (board[a] && board[a] === board[b] && board[a] === board[c]) {
+                    gameActive = false;
+                    winnerCells = pattern;
+                    statusElem.textContent = `Player ${board[a]} wins! 🎉`;
+                    return;
+                }
+            }
+            if (!board.includes('')) {
+                gameActive = false;
+                statusElem.textContent = "It's a draw!";
+            }
+        }
+
+        function resetGame() {
+            board = Array(9).fill('');
+            currentPlayer = 'X';
+            gameActive = true;
+            winnerCells = [];
+            statusElem.textContent = `Player ${currentPlayer}'s turn`;
+            renderBoard();
+        }
+
+        function setMode(newMode) {
+            mode = newMode;
+            twoPlayerBtn.classList.toggle('selected', mode === '2p');
+            vsComputerBtn.classList.toggle('selected', mode === 'cpu');
+            resetGame();
+        }
+
+        twoPlayerBtn.addEventListener('click', () => setMode('2p'));
+        vsComputerBtn.addEventListener('click', () => setMode('cpu'));
+        resetBtn.addEventListener('click', resetGame);
+
+        // Initial render
+        setMode('2p');
+    </script>
+</body>
+</html>
